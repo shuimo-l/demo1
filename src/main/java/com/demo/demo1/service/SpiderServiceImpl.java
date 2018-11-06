@@ -1,5 +1,6 @@
 package com.demo.demo1.service;
 
+import com.demo.demo1.exception.LoginLostException;
 import com.google.common.escape.UnicodeEscaper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -18,7 +19,9 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -33,6 +36,7 @@ public class SpiderServiceImpl implements ISpiderService {
     static WebDriver driver = null;
     Set<Cookie> cookies = null;
     List<String> urls = new ArrayList<>();
+    Map<String, String> account = new HashMap();
 
     static {
         openDriver();
@@ -40,27 +44,39 @@ public class SpiderServiceImpl implements ISpiderService {
     @Override
     public void login(String username, String password) {
         logger.info("username:{}, password:{}:" ,username, password);
+        String s = account.get(username);
+        //如果账号已经在登录的集合中
+        if (StringUtils.hasText(s) && s.equals(password)){
+            return;
+        }
+        account.put(username, password);
         driver.get("https://sellercentral.amazon.com/ap/signin?openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fsellercentral.amazon.com%2Fhome&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=sc_na_amazon_v2&openid.mode=checkid_setup&language=zh_CN&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&pageId=sc_na_amazon_v2&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&ssoResponse=eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.wBMtZaAcgyreXZtH1_mtWyKytNFqngUEciz_EIYxlIswgTtJDwIA_w.CN_2A5Ks6Dg34DkG.ef5ubam-klI9U1FzxIQ0S-Fph5sIbBvHZZvXKYHzW5M7DI-XVp15mt8lReQbLKS90FZDXvm30rhit20PbQxSOSebWNc9IUdkfJSfJdjtDunAlJQ6VulKtGDzierqEI6vNG4IW2YVx1_IHcLuOLfYwcfn_O-q2BoXkCgx-4cB4XmC6DZvM-hR6ZDRDpvQMQxtYWhHKBMRfeIk-MaVeLdTRI-p6fTJGzAl_H5on3GVZC5eOH8Y_dlgwGBpTz6wL__m50cdzeY.xlyFaO934Z2X_nKBJq-Klw");
         driver.findElement(By.id("ap_email")).sendKeys(username);
         driver.findElement(By.id("ap_password")).sendKeys(password);
         driver.findElement(By.id("signInSubmit")).click();
         String pageSource = driver.getPageSource();
         Document doc = Jsoup.parse(pageSource);
+        checkLoginStatus(username, doc);
+        account.put(username, password);
+    }
+
+    private void checkLoginStatus(String username, Document doc) {
         Element ap_email = doc.getElementById("ap_email");
         if (ap_email != null){
-            logger.info("登录失败,账号:{},密码:{}" , username, password);
-            logger.info("pageSource:{}", pageSource);
-            throw new RuntimeException("登录失败");
+            logger.info("pageSource:{}", doc);
+            account.remove(username);
+            throw new LoginLostException("登录失效");
         }
     }
 
     @Override
-    public List<String> search(String q) {
+    public List<String> search(String q, String username) {
         logger.info("执行search()...");
 //        cookies = driver.manage().getCookies();
         Assert.hasText(q, "必须填写搜索关键字");
         //执行第一页
         Document doc = getPageSource(q, 1);
+        checkLoginStatus(username, doc);
         //检查是否可以查询到该商品信息
         Elements text = doc.getElementsContainingText("我们无法找到任何符合下列信息的商品");
         Assert.isTrue(text.size() == 0, "我们无法找到任何符合下列信息的商品:" + q);

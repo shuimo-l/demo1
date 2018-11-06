@@ -10,15 +10,22 @@
             text-align: center;
         }
     </style>
+    <script>
+        function gray() {
+            document.getElementById("login").setAttribute("disabled", true);
+            document.getElementById("form").submit();
+        }
+    </script>
 </head>
 <body>
 
-<form method="post" th:action="@{/login}">
+<form id="form" method="post" th:action="@{/login}">
 
     <input id="username" name="username" type="text" placeholder="用户名"><br><br>
     <input id="password" name="password" type="password" placeholder="密码"><br><br>
-    <button type="submit">登录</button>
+    <button id="login" type="submit" onclick="gray()">登录</button>
     <p style="color: red" th:text="${msg}" th:if="${not #strings.isEmpty(msg)}"></p>
 </form>
 </body>
+
 </html>

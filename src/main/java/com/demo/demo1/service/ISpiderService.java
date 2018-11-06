@@ -11,5 +11,5 @@ public interface ISpiderService {
 
     public void login(String userName, String password);
 
-    public List<String> search(String q);
+    List<String> search(String q, String username);
 }
