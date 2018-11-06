@@ -58,6 +58,7 @@ public class SpiderServiceImpl implements ISpiderService {
         Document doc = Jsoup.parse(pageSource);
         checkLoginStatus(username, doc);
         account.put(username, password);
+        logger.info("登录成功");
     }
 
     private void checkLoginStatus(String username, Document doc) {
@@ -97,8 +98,8 @@ public class SpiderServiceImpl implements ISpiderService {
 
     public static void openDriver() {
         logger.info("启动浏览器...");
-//        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
         options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
