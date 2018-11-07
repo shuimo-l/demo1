@@ -1,7 +1,6 @@
 package com.demo.demo1.service;
 
 import com.demo.demo1.exception.LoginLostException;
-import com.google.common.escape.UnicodeEscaper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -21,9 +20,8 @@ import org.springframework.util.StringUtils;
 import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -39,10 +37,14 @@ public class SpiderServiceImpl implements ISpiderService {
 
     WebDriver driver = null;
     Set<Cookie> cookies = null;
-    List<String> urls = new ArrayList<>();
+    Set<String> urls = null;
     Map<String, String> account = new HashMap();
 
+    @PostConstruct
+    public void init(){
+        logger.info("初始化登录!");
 
+    }
 
     @Override
     public void login(String username, String password) {
@@ -78,16 +80,21 @@ public class SpiderServiceImpl implements ISpiderService {
     }
     public void openDriver() {
         logger.info("启动浏览器...");
-        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+//        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
-        options.setHeadless(true);
+//        options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
         options.addArguments("lang=zh_CN.UTF-8 ;q=0.9");
         options.addArguments("no-sandbox");//禁用沙盒 就是被这个参数搞了一天
+        Map<String, Object> prefs = new HashMap<String, Object>();
+        //设置不显示图片
+        prefs.put("profile.managed_default_content_settings.images", 2);
+        options.setExperimentalOption("prefs", prefs);
+
         driver = new ChromeDriver(options);
-//        driver.manage().timeouts().implicitlyWait(30, TimeUnit.MINUTES);
-//        driver.manage().timeouts().pageLoadTimeout(3, TimeUnit.MINUTES);
+        driver.manage().timeouts().implicitlyWait(30, TimeUnit.MINUTES);
+        driver.manage().timeouts().pageLoadTimeout(10, TimeUnit.MINUTES);
         if (cookies != null) {
             driver.get("https://www.baidu.com");
             for (Cookie cookie : cookies) {
@@ -98,7 +105,7 @@ public class SpiderServiceImpl implements ISpiderService {
     }
 
     @Override
-    public List<String> search(String q, String username) {
+    public Set<String> search(String q, String username) {
         logger.info("执行search(), q:{}, username:{}", q, username);
         openDriver();
         Assert.hasText(q, "必须填写搜索关键字");
@@ -112,19 +119,21 @@ public class SpiderServiceImpl implements ISpiderService {
         int total = getResultNumber(doc);
         int a = ((total - 1) / 10) + 1;
         int pageSize = a < 100 ? a : 100;
-        executeOnePage(doc, q, 1);
+        urls = new LinkedHashSet();
+        executeOnePage(doc, q);
         logger.info("pageSize:{}", pageSize);
         logger.info("{}执行到第1页",q);
         logger.info("urls.size:{}", urls.size());
         for (int i = 2; i <= pageSize; i++) {
             logger.info("{}执行到第{}页", q, i);
             doc = getPageSource(q, i);
-            executeOnePage(doc, q, i);
+            executeOnePage(doc, q);
             logger.info("urls.size:{}", urls.size());
         }
         logger.info("执行完成");
         //关闭驱动
         quitDriver();
+        logger.info("");
         return urls;
     }
 
@@ -133,7 +142,7 @@ public class SpiderServiceImpl implements ISpiderService {
         logger.info("退出浏览器...");
     }
 
-    private void executeOnePage(Document doc, String q, Integer page) {
+    private void executeOnePage(Document doc, String q) {
         //获取所有"显示商品变体"按钮的element
         Elements elements = doc.getElementsByAttributeValue("data-csm", "showVariationsClick");
         //逐条处理"显示商品变体"按钮

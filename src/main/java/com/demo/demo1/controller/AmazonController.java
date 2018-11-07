@@ -11,12 +11,9 @@ import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpSession;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * @author: liuxl
@@ -61,8 +58,7 @@ public class AmazonController {
 
         try {
             Object username = session.getAttribute("loginUser");
-
-            List<String> urls = spiderService.search(q, String.valueOf(username));
+            Set<String> urls = spiderService.search(q, String.valueOf(username));
 //            List<String> urls = new ArrayList<>();
 //            for (int i = 0; i < 100; i++) {
 //                urls.add("https://www.amazon.com/dp/B07CBTT2T5");

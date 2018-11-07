@@ -1,6 +1,6 @@
 package com.demo.demo1.service;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * @author: liuxl
@@ -11,5 +11,5 @@ public interface ISpiderService {
 
     public void login(String userName, String password);
 
-    List<String> search(String q, String username);
+    Set<String> search(String q, String username);
 }
