@@ -95,14 +95,15 @@ public class SpiderServiceImpl implements ISpiderService {
             doc = getPageSource(q, i);
             executeOnePage(doc, q, i);
         }
+        logger.info("执行完成");
         return urls;
         //关闭驱动
     }
 
     public static void openDriver() {
         logger.info("启动浏览器...");
-//        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
         options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
