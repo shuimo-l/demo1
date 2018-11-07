@@ -21,7 +21,7 @@
 <form id="form" method="get" th:action="@{/search}">
     <div class="main">
         <input id="q" name="q" type="text" placeholder="请输入" th:value="${q}">
-        <button id="search" type="submit" onclick="gray()">搜索</button>
+        <button id="search" type="button" onclick="gray()">搜索</button>
         <p style="color: red" th:text="${msg}" th:if="${not #strings.isEmpty(msg)}"></p>
         <p style="color: red" th:text="${sizeZero}" th:if="${not #strings.isEmpty(sizeZero)}"></p>
     </div>
