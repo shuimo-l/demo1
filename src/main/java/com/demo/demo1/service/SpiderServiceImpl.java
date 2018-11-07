@@ -43,7 +43,7 @@ public class SpiderServiceImpl implements ISpiderService {
     @PostConstruct
     public void init(){
         logger.info("初始化登录!");
-
+        login("Amgsy@outlook.com", "He010626@");
     }
 
     @Override
@@ -83,7 +83,7 @@ public class SpiderServiceImpl implements ISpiderService {
 //        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
         System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
-//        options.setHeadless(true);
+        options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
         options.addArguments("lang=zh_CN.UTF-8 ;q=0.9");
         options.addArguments("no-sandbox");//禁用沙盒 就是被这个参数搞了一天
