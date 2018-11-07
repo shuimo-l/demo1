@@ -41,12 +41,13 @@ public class SpiderServiceImpl implements ISpiderService {
     static {
         openDriver();
     }
+
     @Override
     public void login(String username, String password) {
-        logger.info("username:{}, password:{}:" ,username, password);
+        logger.info("username:{}, password:{}:", username, password);
         String s = account.get(username);
         //如果账号已经在登录的集合中
-        if (StringUtils.hasText(s) && s.equals(password)){
+        if (StringUtils.hasText(s) && s.equals(password)) {
             return;
         }
         account.put(username, password);
@@ -65,7 +66,7 @@ public class SpiderServiceImpl implements ISpiderService {
 
     private void checkLoginStatus(String username, Document doc) {
         Element ap_email = doc.getElementById("ap_email");
-        if (ap_email != null){
+        if (ap_email != null) {
             logger.info("pageSource:{}", doc);
             account.remove(username);
             throw new LoginLostException("登录失效");
@@ -74,7 +75,7 @@ public class SpiderServiceImpl implements ISpiderService {
 
     @Override
     public List<String> search(String q, String username) {
-        logger.info("执行search()...");
+        logger.info("执行search(),q:{},username:{}", q, username);
 //        cookies = driver.manage().getCookies();
         Assert.hasText(q, "必须填写搜索关键字");
         //执行第一页
@@ -100,8 +101,8 @@ public class SpiderServiceImpl implements ISpiderService {
 
     public static void openDriver() {
         logger.info("启动浏览器...");
-        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+//        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
         options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
@@ -159,6 +160,10 @@ public class SpiderServiceImpl implements ISpiderService {
             //如果找到就获取该条数据的ASIN号
             if (text != null) {
                 Elements qualifyToSellClick = byClass.getElementsByAttributeValue("data-csm", "qualifyToSellClick");
+                if (qualifyToSellClick == null) {
+                    logger.info("qualifyToSellClick查不到");
+                    continue;
+                }
                 String href = qualifyToSellClick.attr("href");
                 if (StringUtils.hasText(href)) {
                     //把数据添加到到集合
@@ -166,6 +171,7 @@ public class SpiderServiceImpl implements ISpiderService {
                 }
                 //找到一条就行了,可以退出了
                 break;
+
             }
         }
         return null;
