@@ -1,6 +1,7 @@
 package com.demo.demo1.service;
 
 import com.demo.demo1.exception.LoginLostException;
+import com.demo.demo1.utils.HttpUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,7 +20,9 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -35,15 +38,14 @@ import java.util.concurrent.TimeUnit;
 public class SpiderServiceImpl implements ISpiderService {
     public static Logger logger = LoggerFactory.getLogger(SpiderServiceImpl.class);
 
-    WebDriver driver = null;
-    Set<Cookie> cookies = null;
+    String cookies = "";
     Set<String> urls = null;
     Map<String, String> account = new HashMap();
 
     @PostConstruct
-    public void init(){
+    public void init() {
         logger.info("初始化登录!");
-        login("Amgsy@outlook.com", "He010626@");
+
     }
 
     @Override
@@ -54,7 +56,7 @@ public class SpiderServiceImpl implements ISpiderService {
         if (StringUtils.hasText(s) && s.equals(password)) {
             return;
         }
-        openDriver();
+        WebDriver driver = openDriver();
         driver.get("https://sellercentral.amazon.com/ap/signin?openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fsellercentral.amazon.com%2Fhome&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=sc_na_amazon_v2&openid.mode=checkid_setup&language=zh_CN&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&pageId=sc_na_amazon_v2&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&ssoResponse=eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.wBMtZaAcgyreXZtH1_mtWyKytNFqngUEciz_EIYxlIswgTtJDwIA_w.CN_2A5Ks6Dg34DkG.ef5ubam-klI9U1FzxIQ0S-Fph5sIbBvHZZvXKYHzW5M7DI-XVp15mt8lReQbLKS90FZDXvm30rhit20PbQxSOSebWNc9IUdkfJSfJdjtDunAlJQ6VulKtGDzierqEI6vNG4IW2YVx1_IHcLuOLfYwcfn_O-q2BoXkCgx-4cB4XmC6DZvM-hR6ZDRDpvQMQxtYWhHKBMRfeIk-MaVeLdTRI-p6fTJGzAl_H5on3GVZC5eOH8Y_dlgwGBpTz6wL__m50cdzeY.xlyFaO934Z2X_nKBJq-Klw");
         driver.findElement(By.id("ap_email")).sendKeys(username);
         driver.findElement(By.id("ap_password")).sendKeys(password);
@@ -65,9 +67,14 @@ public class SpiderServiceImpl implements ISpiderService {
         Document doc = Jsoup.parse(pageSource);
         checkLoginStatus(username, doc);
         account.put(username, password);
-        cookies = driver.manage().getCookies();
+        Set<Cookie> cookies = driver.manage().getCookies();
+        StringBuffer sb = new StringBuffer();
+        for (Cookie cookie : cookies) {
+            sb.append(cookie.getName()).append("=").append(cookie.getValue()).append("; ");
+        }
+        this.cookies = sb.toString();
         logger.info("登录成功");
-        quitDriver();
+        quitDriver(driver);
     }
 
     private void checkLoginStatus(String username, Document doc) {
@@ -78,10 +85,11 @@ public class SpiderServiceImpl implements ISpiderService {
             throw new LoginLostException("登录失效");
         }
     }
-    public void openDriver() {
+
+    public WebDriver openDriver() {
         logger.info("启动浏览器...");
-//        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
         ChromeOptions options = new ChromeOptions();
         options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
@@ -92,22 +100,16 @@ public class SpiderServiceImpl implements ISpiderService {
         prefs.put("profile.managed_default_content_settings.images", 2);
         options.setExperimentalOption("prefs", prefs);
 
-        driver = new ChromeDriver(options);
+        WebDriver driver = new ChromeDriver(options);
         driver.manage().timeouts().implicitlyWait(30, TimeUnit.MINUTES);
         driver.manage().timeouts().pageLoadTimeout(10, TimeUnit.MINUTES);
-        if (cookies != null) {
-            driver.get("https://www.baidu.com");
-            for (Cookie cookie : cookies) {
-                driver.manage().addCookie(cookie);
-            }
-        }
         logger.info("driver:{}", driver);
+        return driver;
     }
 
     @Override
     public Set<String> search(String q, String username) {
         logger.info("执行search(), q:{}, username:{}", q, username);
-        openDriver();
         Assert.hasText(q, "必须填写搜索关键字");
         //执行第一页
         Document doc = getPageSource(q, 1);
@@ -122,7 +124,7 @@ public class SpiderServiceImpl implements ISpiderService {
         urls = new LinkedHashSet();
         executeOnePage(doc, q);
         logger.info("pageSize:{}", pageSize);
-        logger.info("{}执行到第1页",q);
+        logger.info("{}执行到第1页", q);
         logger.info("urls.size:{}", urls.size());
         for (int i = 2; i <= pageSize; i++) {
             logger.info("{}执行到第{}页", q, i);
@@ -131,13 +133,10 @@ public class SpiderServiceImpl implements ISpiderService {
             logger.info("urls.size:{}", urls.size());
         }
         logger.info("执行完成");
-        //关闭驱动
-        quitDriver();
-        logger.info("");
         return urls;
     }
 
-    public void quitDriver() {
+    public void quitDriver(WebDriver driver) {
         driver.quit();
         logger.info("退出浏览器...");
     }
@@ -157,8 +156,7 @@ public class SpiderServiceImpl implements ISpiderService {
     }
 
     private Document getPageSource(String q, Integer page) {
-        driver.get("https://sellercentral.amazon.com/productsearch?q=" + q + "&page=" + page);
-        String pageSource = driver.getPageSource();
+        String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch?q=" + q + "&page=" + page, cookies);
         Document doc = Jsoup.parse(pageSource);
         return doc;
     }
@@ -174,40 +172,9 @@ public class SpiderServiceImpl implements ISpiderService {
         return max;
     }
 
-    @Test
-    public void test1() throws IOException {
-        Document parse = Jsoup.parse(new File("D:\\Administrator\\Desktop\\1234.html"), "utf-8");
-        Elements elementsByClass = parse.getElementsByClass("child-variation-expander");
-        for (Element byClass : elementsByClass) {
-            //查询符合规范的数据
-            Elements text = byClass.getElementsContainingText("您需要获得批准，才能发布此品牌的商品");
-            //如果找到就获取该条数据的ASIN号
-            if (text != null) {
-                Elements qualifyToSellClick = byClass.getElementsByAttributeValue("data-csm", "qualifyToSellClick");
-                if (qualifyToSellClick == null) {
-                    logger.info("qualifyToSellClick查不到");
-                    continue;
-                }
-                String href = qualifyToSellClick.attr("href");
-                if (StringUtils.hasText(href)) {
-                    //把数据添加到到集合
-                    String[] split = href.split("=");
-                    if (split.length > 1) {
-                    } else {
-                        logger.info("href:{}", href);
-                    }
-                }
-                //找到一条就行了,可以退出了
-                break;
-
-            }
-        }
-    }
 
     private String clickShowVariations(String asin) {
-
-        driver.get("https://sellercentral.amazon.com/productsearch/children?page=1&asin=" + asin + "&searchRank=1");
-        String pageSource = driver.getPageSource();
+        String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch/children?page=1&asin=" + asin + "&searchRank=1", cookies);
         Document parse = Jsoup.parse(pageSource);
         //获取所有"有商品发布限制"中的数据
         Elements elementsByClass = parse.getElementsByClass("child-variation-expander");
@@ -215,7 +182,7 @@ public class SpiderServiceImpl implements ISpiderService {
             //查询符合规范的数据
             Elements text = byClass.getElementsContainingText("您需要获得批准，才能发布此品牌的商品");
             //如果找到就获取该条数据的ASIN号
-            if (text != null) {
+            if (text.size() != 0) {
                 Elements qualifyToSellClick = byClass.getElementsByAttributeValue("data-csm", "qualifyToSellClick");
                 if (qualifyToSellClick == null) {
                     logger.info("qualifyToSellClick查不到");

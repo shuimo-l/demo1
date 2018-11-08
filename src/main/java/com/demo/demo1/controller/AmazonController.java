@@ -56,6 +56,7 @@ public class AmazonController {
     @GetMapping("/search")
     public String search(Model model, String q, HttpSession session) {
 
+        long startTime = System.currentTimeMillis();
         try {
             Object username = session.getAttribute("loginUser");
             Set<String> urls = spiderService.search(q, String.valueOf(username));
@@ -63,9 +64,10 @@ public class AmazonController {
 //            for (int i = 0; i < 100; i++) {
 //                urls.add("https://www.amazon.com/dp/B07CBTT2T5");
 //            }
-            if (urls.size() == 0){
+            if (urls.size() == 0) {
                 model.addAttribute("sizeZero", "没有符合条件的内容");
             }
+
             model.addAttribute("urls", urls);
         } catch (LoginLostException e) {
             logger.error("LoginLostException,登录失效", e);
@@ -77,6 +79,9 @@ public class AmazonController {
             return "search.html";
         }
         model.addAttribute("q", q);
+        long endTime = System.currentTimeMillis();
+        model.addAttribute("time", "搜索花费" + (endTime + startTime) / 1000 + "秒");
         return "search";
     }
+
 }
