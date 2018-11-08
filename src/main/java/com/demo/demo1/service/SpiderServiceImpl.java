@@ -36,7 +36,8 @@ import java.util.concurrent.TimeUnit;
 public class SpiderServiceImpl implements ISpiderService {
     public static Logger logger = LoggerFactory.getLogger(SpiderServiceImpl.class);
 
-    String cookies = "";
+//    String cookies = "";
+    Map<String, String> cookieMap = new HashMap<>();
     Set<String> urls = null;
     Map<String, String> account = new HashMap();
 
@@ -76,7 +77,8 @@ public class SpiderServiceImpl implements ISpiderService {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-        this.cookies = sb.toString();
+//        this.cookies = sb.toString();
+        cookieMap.put(username, sb.toString());
         logger.info("登录成功");
         quitDriver(driver);
     }
@@ -85,15 +87,6 @@ public class SpiderServiceImpl implements ISpiderService {
         ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("d://out.obj"));
         out.writeObject(obj);
         out.close();
-    }
-
-    private void checkLoginStatus(String username, Document doc) {
-        Element ap_email = doc.getElementById("ap_email");
-        if (ap_email != null) {
-            logger.info("pageSource:{}", doc);
-            account.remove(username);
-            throw new LoginLostException("登录失效");
-        }
     }
 
     public WebDriver openDriver() {
@@ -121,12 +114,28 @@ public class SpiderServiceImpl implements ISpiderService {
         return driver;
     }
 
+    public void quitDriver(WebDriver driver) {
+        driver.quit();
+        logger.info("退出浏览器...");
+    }
+
+    private void checkLoginStatus(String username, Document doc) {
+        Element ap_email = doc.getElementById("ap_email");
+        if (ap_email != null) {
+            logger.info("pageSource:{}", doc);
+            account.remove(username);
+            cookieMap.remove(username);
+            throw new LoginLostException("登录失效");
+        }
+    }
+
     @Override
     public Set<String> search(String q, String username) {
         logger.info("执行search(), q:{}, username:{}", q, username);
         Assert.hasText(q, "必须填写搜索关键字");
         //执行第一页
-        Document doc = getPageSource(q, 1);
+        String cookies = cookieMap.get(username);
+        Document doc = getPageSource(q, 1, cookies);
         checkLoginStatus(username, doc);
         //检查是否可以查询到该商品信息
         Elements text = doc.getElementsContainingText("我们无法找到任何符合下列信息的商品");
@@ -136,40 +145,21 @@ public class SpiderServiceImpl implements ISpiderService {
         int a = ((total - 1) / 10) + 1;
         int pageSize = a < 100 ? a : 100;
         urls = new LinkedHashSet();
-        executeOnePage(doc, q);
+        executeOnePage(doc, q, cookies);
         logger.info("pageSize:{}", pageSize);
         logger.info("{}执行到第1页", q);
         logger.info("urls.size:{}", urls.size());
         for (int i = 2; i <= pageSize; i++) {
             logger.info("{}执行到第{}页", q, i);
-            doc = getPageSource(q, i);
-            executeOnePage(doc, q);
+            doc = getPageSource(q, i, cookies);
+            executeOnePage(doc, q, cookies);
             logger.info("urls.size:{}", urls.size());
         }
         logger.info("执行完成");
         return urls;
     }
 
-    public void quitDriver(WebDriver driver) {
-        driver.quit();
-        logger.info("退出浏览器...");
-    }
-
-    private void executeOnePage(Document doc, String q) {
-        //获取所有"显示商品变体"按钮的element
-        Elements elements = doc.getElementsByAttributeValue("data-csm", "showVariationsClick");
-        //逐条处理"显示商品变体"按钮
-        for (Element element : elements) {
-            String asin = element.val();
-            //点击显示商品变体
-            String url = clickShowVariations(asin);
-            if (StringUtils.hasText(url)) {
-                urls.add(url);
-            }
-        }
-    }
-
-    private Document getPageSource(String q, Integer page) {
+    private Document getPageSource(String q, Integer page, String cookies) {
         String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch?q=" + q + "&page=" + page, cookies);
         Document doc = Jsoup.parse(pageSource);
         return doc;
@@ -186,7 +176,22 @@ public class SpiderServiceImpl implements ISpiderService {
         return max;
     }
 
-    private String clickShowVariations(String asin) {
+
+    private void executeOnePage(Document doc, String q, String cookies) {
+        //获取所有"显示商品变体"按钮的element
+        Elements elements = doc.getElementsByAttributeValue("data-csm", "showVariationsClick");
+        //逐条处理"显示商品变体"按钮
+        for (Element element : elements) {
+            String asin = element.val();
+            //点击显示商品变体
+            String url = clickShowVariations(asin, cookies);
+            if (StringUtils.hasText(url)) {
+                urls.add(url);
+            }
+        }
+    }
+
+    private String clickShowVariations(String asin, String cookies) {
         String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch/children?page=1&asin=" + asin + "&searchRank=1", cookies);
         Document parse = Jsoup.parse(pageSource);
         //获取所有"有商品发布限制"中的数据
