@@ -6,7 +6,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.junit.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
@@ -19,7 +18,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -72,9 +70,21 @@ public class SpiderServiceImpl implements ISpiderService {
         for (Cookie cookie : cookies) {
             sb.append(cookie.getName()).append("=").append(cookie.getValue()).append("; ");
         }
+
+//        try {
+//            obj2File(cookies);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         this.cookies = sb.toString();
         logger.info("登录成功");
         quitDriver(driver);
+    }
+
+    private void obj2File(Object obj) throws IOException {
+        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("d://out.obj"));
+        out.writeObject(obj);
+        out.close();
     }
 
     private void checkLoginStatus(String username, Document doc) {
@@ -88,13 +98,17 @@ public class SpiderServiceImpl implements ISpiderService {
 
     public WebDriver openDriver() {
         logger.info("启动浏览器...");
-        System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
-//        System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+        String osName = System.getProperty("os.name");
+        if (osName.contains("Windows")) {
+            System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+        } else {
+            System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
+        }
         ChromeOptions options = new ChromeOptions();
         options.setHeadless(true);
         options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36");
         options.addArguments("lang=zh_CN.UTF-8 ;q=0.9");
-        options.addArguments("no-sandbox");//禁用沙盒 就是被这个参数搞了一天
+        options.addArguments("no-sandbox");//禁用沙盒
         Map<String, Object> prefs = new HashMap<String, Object>();
         //设置不显示图片
         prefs.put("profile.managed_default_content_settings.images", 2);
@@ -171,7 +185,6 @@ public class SpiderServiceImpl implements ISpiderService {
         int max = Math.max(Math.max(a, b), c);
         return max;
     }
-
 
     private String clickShowVariations(String asin) {
         String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch/children?page=1&asin=" + asin + "&searchRank=1", cookies);

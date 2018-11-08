@@ -24,12 +24,12 @@
         <button id="search" type="button" onclick="gray()">搜索</button>
         <p style="color: red" th:text="${msg}" th:if="${not #strings.isEmpty(msg)}"></p>
         <p style="color: red" th:text="${sizeZero}" th:if="${not #strings.isEmpty(sizeZero)}"></p>
-        <p style="color: red" th:text="${time}" th:if="${not #strings.isEmpty(time)}"></p>
+        <p style="color: blue" th:text="${time}" th:if="${not #strings.isEmpty(time)}"></p>
     </div>
 </form>
 
 <div class="main" style="" th:each="url,iterStat:${urls}">          
-    <div><span th:text="${iterStat.count}"></span>><a href="" th:href="${url}" th:text="${url}" target="_blank"></a>
+    <div><span th:text="${iterStat.count}"></span><a href="" th:href="${url}" th:text="${url}" target="_blank"></a>
     </div>
 </div>
 

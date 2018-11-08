@@ -81,7 +81,7 @@ public class HttpUtils {
             return false;
         }
     };*/
-    public static CloseableHttpClient httpClient = getInstance();
+    private static CloseableHttpClient httpClient = getInstance();
 
     private static CloseableHttpClient getInstance() {
         return HttpClients.custom()

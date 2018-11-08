@@ -80,7 +80,7 @@ public class AmazonController {
         }
         model.addAttribute("q", q);
         long endTime = System.currentTimeMillis();
-        model.addAttribute("time", "搜索花费" + (endTime + startTime) / 1000 + "秒");
+        model.addAttribute("time", "搜索花费" + (endTime - startTime) / 1000 + "秒");
         return "search";
     }
 
