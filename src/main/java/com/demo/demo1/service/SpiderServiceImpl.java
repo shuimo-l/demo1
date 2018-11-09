@@ -49,7 +49,7 @@ public class SpiderServiceImpl implements ISpiderService {
 
     @Override
     public void login(String username, String password) {
-        logger.info("username:{}, password:{}:", username, password);
+        logger.info("username:{}, password:{}", username, password);
         String s = account.get(username);
         //如果账号已经在登录的集合中
         if (StringUtils.hasText(s) && s.equals(password)) {
@@ -120,7 +120,7 @@ public class SpiderServiceImpl implements ISpiderService {
     }
 
     private void checkLoginStatus(String username, Document doc) {
-        Element ap_email = doc.getElementById("ap_email");
+        Element ap_email = doc.getElementById("ap_password");
         if (ap_email != null) {
             logger.info("pageSource:{}", doc);
             account.remove(username);
