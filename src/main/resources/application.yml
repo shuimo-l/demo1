@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://root:123_456@47.107.78.134:27017/spider
+#      host: 47.107.78.134
+#      port: 27017
+#      username: root
+#      password: 123_456
+#      database: spider

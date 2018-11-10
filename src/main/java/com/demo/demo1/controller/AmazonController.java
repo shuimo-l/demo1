@@ -1,13 +1,16 @@
 package com.demo.demo1.controller;
 
 import com.demo.demo1.exception.LoginLostException;
+import com.demo.demo1.mongodb.Goods;
 import com.demo.demo1.service.SpiderServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,6 +29,8 @@ public class AmazonController {
     public static Logger logger = LoggerFactory.getLogger(AmazonController.class);
     @Autowired
     private SpiderServiceImpl spiderService;
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
 
     @GetMapping("/login")
     public String index() {
@@ -41,7 +46,7 @@ public class AmazonController {
         try {
             spiderService.login(username, password);
             session.setAttribute("loginUser", username);
-            return "redirect:/search.html";
+            return "redirect:/quick_search.html";
         } catch (LoginLostException e) {
             logger.error("LoginLostException,登录失效", e);
             model.addAttribute("msg", e.getMessage());
@@ -56,19 +61,17 @@ public class AmazonController {
     @GetMapping("/search")
     public String search(Model model, String q, HttpSession session) {
 
-        long startTime = System.currentTimeMillis();
         try {
+            Assert.hasText(q, "请填写搜索关键字");
             Object username = session.getAttribute("loginUser");
-            Set<String> urls = spiderService.search(q, String.valueOf(username));
-//            List<String> urls = new ArrayList<>();
-//            for (int i = 0; i < 100; i++) {
-//                urls.add("https://www.amazon.com/dp/B07CBTT2T5");
-//            }
-            if (urls.size() == 0) {
-                model.addAttribute("sizeZero", "没有符合条件的内容");
-            }
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    spiderService.search(q, String.valueOf(username));
+                }
+            });
+            t.start();
 
-            model.addAttribute("urls", urls);
         } catch (LoginLostException e) {
             logger.error("LoginLostException,登录失效", e);
             model.addAttribute("msg", e.getMessage());
@@ -78,10 +81,22 @@ public class AmazonController {
             model.addAttribute("msg", e.getMessage());
             return "search.html";
         }
-        model.addAttribute("q", q);
-        long endTime = System.currentTimeMillis();
-        model.addAttribute("time", "搜索花费" + (endTime - startTime) / 1000 + "秒");
         return "search";
+    }
+
+    @GetMapping("/quickSearch")
+    public String quickSearch(Model model, String q, HttpSession session) {
+        if (!StringUtils.hasText(q)) {
+            model.addAttribute("msg", "请填写搜索关键字");
+        } else {
+            Goods goods = spiderService.getByMongodb(q);
+            if (goods == null) {
+                model.addAttribute("sizeZero", "没有查询到信息,请先到搜索页面查询");
+            }
+            model.addAttribute("q", q);
+            model.addAttribute("goods", goods);
+        }
+        return "quick_search";
     }
 
 }

@@ -33,9 +33,9 @@ public class HttpUtils {
     private static final Logger log = LoggerFactory.getLogger(HttpUtils.class);
     public static BasicCookieStore cookieStore = new BasicCookieStore();
     private static RequestConfig requestConfig = RequestConfig.custom()
-            .setConnectionRequestTimeout(5000)
-            .setConnectTimeout(10000)
-            .setSocketTimeout(10000).build();
+            .setConnectionRequestTimeout(10000)
+            .setConnectTimeout(20000)
+            .setSocketTimeout(20000).build();
 
     /**
      * 测出超时重试机制为了防止超时不生效而设置

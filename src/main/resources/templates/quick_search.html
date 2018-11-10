@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>搜索</title>
+    <style>
+        body {
+            text-align: center;
+        }
+    </style>
+    <script>
+        function gray(){
+            document.getElementById("search").setAttribute("disabled", true);
+            document.getElementById("form").submit();
+        }
+    </script>
+</head>
+<body>
+
+
+<form id="form" method="get" th:action="@{/quickSearch}">
+    <div class="main">
+        <input id="q" name="q" type="text" placeholder="请输入" th:value="${q}">&nbsp&nbsp
+        <button id="search" type="button" onclick="gray()">快速搜索</button>
+        <p style="color: red" th:text="${msg}" th:if="${not #strings.isEmpty(msg)}"></p>
+        <p style="color: red" th:text="${sizeZero}" th:if="${not #strings.isEmpty(sizeZero)}"></p>
+        <a th:if="${#strings.isEmpty(sizeZero)}" href="/search"><button type="button" >去搜索</button></a>
+    </div>
+</form>
+
+<h1 th:text="${q}"></h1>
+<div class="main"  th:each="firstCatalog, iter:${goods?.firstCatalogs}">
+    <h4>
+        <span th:text="${iter.count}"></span>
+        <span th:text="${firstCatalog.categorys}"></span>
+    </h4>
+    <div th:each="url,iterStat:${firstCatalog.urls}">
+        <span th:text="${iterStat.count}"></span>
+        <a th:href="${url}" th:text="${url}" target="_blank"></a>
+    </div>
+    <br><br><hr width="30%">
+</div>
+
+  
+
+
+</body>
+</html>

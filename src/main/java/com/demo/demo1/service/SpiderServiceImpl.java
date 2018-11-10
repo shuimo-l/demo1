@@ -1,6 +1,8 @@
 package com.demo.demo1.service;
 
 import com.demo.demo1.exception.LoginLostException;
+import com.demo.demo1.mongodb.FirstCatalog;
+import com.demo.demo1.mongodb.Goods;
 import com.demo.demo1.utils.HttpUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -13,6 +15,10 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -21,10 +27,7 @@ import javax.annotation.PostConstruct;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,9 +39,11 @@ import java.util.concurrent.TimeUnit;
 public class SpiderServiceImpl implements ISpiderService {
     public static Logger logger = LoggerFactory.getLogger(SpiderServiceImpl.class);
 
-//    String cookies = "";
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
     Map<String, String> cookieMap = new HashMap<>();
-    Set<String> urls = null;
+
     Map<String, String> account = new HashMap();
 
     @PostConstruct
@@ -94,6 +99,7 @@ public class SpiderServiceImpl implements ISpiderService {
         String osName = System.getProperty("os.name");
         if (osName.contains("Windows")) {
             System.setProperty("webdriver.chrome.driver", "d:\\Administrator\\Downloads\\chromedriver.exe");
+//            System.setProperty("webdriver.chrome.driver", "C:\\Users\\O2\\Downloads\\chromedriver.exe");
         } else {
             System.setProperty("webdriver.chrome.driver", "/usr/local/service/chromedriver");
         }
@@ -130,37 +136,83 @@ public class SpiderServiceImpl implements ISpiderService {
     }
 
     @Override
-    public Set<String> search(String q, String username) {
+    public void search(String q, String username) {
         logger.info("执行search(), q:{}, username:{}", q, username);
-        Assert.hasText(q, "必须填写搜索关键字");
         //执行第一页
         String cookies = cookieMap.get(username);
+
         Document doc = getPageSource(q, 1, cookies);
         checkLoginStatus(username, doc);
         //检查是否可以查询到该商品信息
         Elements text = doc.getElementsContainingText("我们无法找到任何符合下列信息的商品");
         Assert.isTrue(text.size() == 0, "我们无法找到任何符合下列信息的商品:" + q);
-        //获取结果个数
-        int total = getResultNumber(doc);
-        int a = ((total - 1) / 10) + 1;
-        int pageSize = a < 100 ? a : 100;
-        urls = new LinkedHashSet();
-        executeOnePage(doc, q, cookies);
-        logger.info("pageSize:{}", pageSize);
-        logger.info("{}执行到第1页", q);
-        logger.info("urls.size:{}", urls.size());
-        for (int i = 2; i <= pageSize; i++) {
-            logger.info("{}执行到第{}页", q, i);
-            doc = getPageSource(q, i, cookies);
-            executeOnePage(doc, q, cookies);
-            logger.info("urls.size:{}", urls.size());
+        Elements filters = doc.getElementsByClass("filters");
+
+        Map<String, String> categoryMap = new HashMap<>();
+        for (Element filter : filters) {
+            Elements elementsByClass = filter.getElementsByClass("a-list-item");
+            Elements a = elementsByClass.select("a");
+            for (Element element : a) {
+                String href = element.attr("href");
+                int start = href.indexOf("filter=") + 7;
+                int end = href.indexOf("&q");
+                categoryMap.put(href.substring(start, end), element.text());
+            }
         }
-        logger.info("执行完成");
-        return urls;
+
+        List<FirstCatalog> firstCatalogs = new ArrayList<>();
+        for (Map.Entry<String, String> entry : categoryMap.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            //执行第一页
+            doc = getPageSourceByCategory(q, 1, cookies, key);
+            //检查是否可以查询到该商品信息
+            text = doc.getElementsContainingText("我们无法找到任何符合下列信息的商品");
+            if (text.size() != 0) {
+                FirstCatalog catalog = new FirstCatalog();
+                catalog.setCategorys(value);
+                catalog.setUrls(null);
+                firstCatalogs.add(catalog);
+                continue;
+            }
+            //获取结果个数
+            int total = getResultNumber(doc);
+            int a = ((total - 1) / 10) + 1;
+            int pageSize = a < 100 ? a : 100;
+//            int pageSize = 2;
+
+            Set<String> urls = new LinkedHashSet();
+            executeOnePage(doc, q, cookies, urls);
+            logger.info("{}.{}pageSize:{}", q, value, pageSize);
+            logger.info("{}.{}执行到第1页", q, value);
+            logger.info("urls.size:{}", urls.size());
+            for (int i = 2; i <= pageSize; i++) {
+                logger.info("{}.{}执行到第{}页", q, value, i);
+                doc = getPageSourceByCategory(q, i, cookies, entry.getKey());
+                executeOnePage(doc, q, cookies, urls);
+                logger.info("{}urls.size:{}", value, urls.size());
+            }
+            FirstCatalog catalog = new FirstCatalog();
+            catalog.setCategorys(value);
+            catalog.setUrls(urls);
+            firstCatalogs.add(catalog);
+            logger.info("{}.{}执行完成", q, value);
+        }
+        Goods goods = new Goods();
+        goods.setKeyword(q);
+        goods.setFirstCatalogs(firstCatalogs);
+        mongoTemplate.save(goods);
+
     }
 
     private Document getPageSource(String q, Integer page, String cookies) {
         String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch?q=" + q + "&page=" + page, cookies);
+        Document doc = Jsoup.parse(pageSource);
+        return doc;
+    }
+
+    private Document getPageSourceByCategory(String q, Integer page, String cookies, String categoryNo) {
+        String pageSource = HttpUtils.sendGet("https://sellercentral.amazon.com/productsearch?filter=" + categoryNo + "&q=" + q + "&page=" + page, cookies);
         Document doc = Jsoup.parse(pageSource);
         return doc;
     }
@@ -176,8 +228,7 @@ public class SpiderServiceImpl implements ISpiderService {
         return max;
     }
 
-
-    private void executeOnePage(Document doc, String q, String cookies) {
+    private void executeOnePage(Document doc, String q, String cookies, Set<String> urls) {
         //获取所有"显示商品变体"按钮的element
         Elements elements = doc.getElementsByAttributeValue("data-csm", "showVariationsClick");
         //逐条处理"显示商品变体"按钮
@@ -223,5 +274,11 @@ public class SpiderServiceImpl implements ISpiderService {
         }
         return null;
 
+    }
+
+    public Goods getByMongodb(String q) {
+        Query query = new Query(Criteria.where("_id").is(q));
+        Goods goods = mongoTemplate.findOne(query, Goods.class);
+        return goods;
     }
 }
