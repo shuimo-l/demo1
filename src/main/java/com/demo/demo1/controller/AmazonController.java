@@ -46,7 +46,7 @@ public class AmazonController {
         try {
             spiderService.login(username, password);
             session.setAttribute("loginUser", username);
-            return "redirect:/quick_search.html";
+            return "redirect:/quickSearch";
         } catch (LoginLostException e) {
             logger.error("LoginLostException,登录失效", e);
             model.addAttribute("msg", e.getMessage());
