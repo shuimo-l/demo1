@@ -152,7 +152,7 @@ public class SpiderServiceImpl implements ISpiderService {
         Assert.isTrue(text.size() == 0, "我们无法找到任何符合下列信息的商品:" + q);
         Elements filters = doc.getElementsByClass("filters");
 
-        Map<String, String> categoryMap = new HashMap<>();
+        Map<String, String> categoryMap = new LinkedHashMap<>();
         for (Element filter : filters) {
             Elements elementsByClass = filter.getElementsByClass("a-list-item");
             Elements a = elementsByClass.select("a");
@@ -180,7 +180,14 @@ public class SpiderServiceImpl implements ISpiderService {
                 continue;
             }
             //获取结果个数
-            int total = getResultNumber(doc);
+            int total = 0;
+            try {
+                total = getResultNumber(doc);
+            }catch (NullPointerException e){
+                logger.error("getResultNumber异常", e);
+                logger.info("key:{}, value:{}", key, value);
+                continue;
+            }
             int a = ((total - 1) / 10) + 1;
             int pageSize = a < 100 ? a : 100;
 //            int pageSize = 2;
