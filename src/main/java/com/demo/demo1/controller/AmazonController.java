@@ -61,17 +61,22 @@ public class AmazonController {
     @GetMapping("/search")
     public String search(Model model, String q, HttpSession session) {
 
-        try {
-            Assert.hasText(q, "请填写搜索关键字");
-            Object username = session.getAttribute("loginUser");
-            Thread t = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    spiderService.search(q, String.valueOf(username), session);
-                }
-            });
-            t.start();
+//        try {
+//            Assert.hasText(q, "请填写搜索关键字");
+        if (!StringUtils.hasText(q)) {
+            model.addAttribute("msg", "请填写搜索关键字");
+            return "search";
+        }
 
+        Object username = session.getAttribute("loginUser");
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                spiderService.search(q, String.valueOf(username), session);
+            }
+        });
+        t.start();
+/*
         } catch (LoginLostException e) {
             logger.error("LoginLostException,登录失效", e);
             model.addAttribute("msg", e.getMessage());
@@ -80,7 +85,8 @@ public class AmazonController {
             logger.error("异常", e);
             model.addAttribute("msg", e.getMessage());
             return "search.html";
-        }
+        }*/
+        model.addAttribute("msg", "已在后台查询[" + q + "],请稍候到快速查询页面查询");
         return "search";
     }
 
