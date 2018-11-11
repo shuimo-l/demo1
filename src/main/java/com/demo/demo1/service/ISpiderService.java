@@ -1,6 +1,6 @@
 package com.demo.demo1.service;
 
-import java.util.Set;
+import javax.servlet.http.HttpSession;
 
 /**
  * @author: liuxl
@@ -9,7 +9,7 @@ import java.util.Set;
  */
 public interface ISpiderService {
 
-    public void login(String userName, String password);
+    public void login(String username, String password);
 
-    void search(String q, String username);
+    void search(String q, String username, HttpSession session);
 }

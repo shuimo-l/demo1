@@ -24,6 +24,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
+import javax.servlet.http.HttpSession;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -69,7 +70,7 @@ public class SpiderServiceImpl implements ISpiderService {
         logger.info("点击登录按钮后");
         String pageSource = driver.getPageSource();
         Document doc = Jsoup.parse(pageSource);
-        checkLoginStatus(username, doc);
+        checkLoginStatus(username, doc, null);
         account.put(username, password);
         Set<Cookie> cookies = driver.manage().getCookies();
         StringBuffer sb = new StringBuffer();
@@ -125,24 +126,27 @@ public class SpiderServiceImpl implements ISpiderService {
         logger.info("退出浏览器...");
     }
 
-    private void checkLoginStatus(String username, Document doc) {
+    private void checkLoginStatus(String username, Document doc, HttpSession session) {
         Element ap_email = doc.getElementById("ap_password");
         if (ap_email != null) {
             logger.info("pageSource:{}", doc);
             account.remove(username);
             cookieMap.remove(username);
+            if (session != null) {
+                session.removeAttribute("loginUser");
+            }
             throw new LoginLostException("登录失效");
         }
     }
 
     @Override
-    public void search(String q, String username) {
+    public void search(String q, String username, HttpSession session) {
         logger.info("执行search(), q:{}, username:{}", q, username);
         //执行第一页
         String cookies = cookieMap.get(username);
 
         Document doc = getPageSource(q, 1, cookies);
-        checkLoginStatus(username, doc);
+        checkLoginStatus(username, doc, session);
         //检查是否可以查询到该商品信息
         Elements text = doc.getElementsContainingText("我们无法找到任何符合下列信息的商品");
         Assert.isTrue(text.size() == 0, "我们无法找到任何符合下列信息的商品:" + q);

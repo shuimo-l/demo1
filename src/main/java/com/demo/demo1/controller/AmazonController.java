@@ -67,7 +67,7 @@ public class AmazonController {
             Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    spiderService.search(q, String.valueOf(username));
+                    spiderService.search(q, String.valueOf(username), session);
                 }
             });
             t.start();
